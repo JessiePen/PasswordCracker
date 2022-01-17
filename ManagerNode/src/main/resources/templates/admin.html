@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>admin page</title>
+    <script src="https://cdn.bootcss.com/vue/2.5.17/vue.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link href="/style.css" rel="stylesheet">
+</head>
+<body>
+    <div id="add-form" class="form">
+        <div>Add A Worker Node</div>
+        <input v-model="ip" type="text" name="ip" placeholder="IP">
+        <input v-model="port" type="text" name="port" placeholder="Port">
+        <button @click="onAddClick">add</button>
+    </div>
+    <script>
+        const addForm = new Vue({
+            el: '#add-form',
+            data: {
+                ip: '',
+                port: '',
+            },
+            methods: {
+                onAddClick() {
+                    $.ajax({
+                        url: `/admin/node`,
+                        type: 'POST',
+                        data: {
+                            ip: this.ip,
+                            port: this.port,
+                        },
+                        success: (resp) => {
+                            if (resp.code == 0) {
+                                alert("Add Node Successfully!")
+                            } else {
+                                alert(resp.msg)
+                            }
+                            this.ip = "";
+                            this.port = "";
+                        }
+                    })
+                }
+            }
+        })
+    </script>
+    <div id="delete-form" class="form">
+        <div>Delete A Worker Node</div>
+        <input v-model="ip" type="text" name="ip" placeholder="IP">
+        <input v-model="port" type="text" name="port" placeholder="Port">
+        <button @click="onDeleteClick">delete</button>
+    </div>
+    <script>
+        const deleteForm = new Vue({
+            el: '#delete-form',
+            data: {
+                ip: '',
+                port: '',
+            },
+            methods: {
+                onDeleteClick() {
+                    $.ajax({
+                        url: `/admin/node`,
+                        type: 'DELETE',
+                        data: {
+                            ip: this.ip,
+                            port: this.port,
+                        },
+                        success: (resp) => {
+                            if (resp.code == 0) {
+                                alert("Delete Node Successfully!")
+                            } else {
+                                alert(resp.msg)
+                            }
+                            this.ip = "";
+                            this.port = "";
+                        }
+                    })
+                }
+            }
+        })
+    </script>
+    <div id="search-node" >
+        <button class="search-btn" @click="onSearchClick">find all available</button>
+        <div class="search" v-if="nodes.length">
+            <div v-for="node in nodes" class="search-item">
+                <p>IP: {{node.ip}}</p>
+                <p>PORT: {{node.port}}</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        const searchNode = new Vue({
+            el: '#search-node',
+            data: {
+                nodes: [],
+            },
+            methods: {
+                onSearchClick() {
+                    $.ajax({
+                        url: `/admin/all`,
+                        type: 'GET',
+                        success: (resp) => {
+                            if (resp.code == 0) {
+                                this.nodes = resp.data
+                            } else {
+                                alert(resp.msg)
+                            }
+                        }
+                    })
+                }
+            }
+        })
+    </script>
+</body>
+</html>

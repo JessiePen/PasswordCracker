@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>user page</title>
+    <script src="https://cdn.bootcss.com/vue/2.5.17/vue.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="/jquery.md5.js"></script>
+    <link href="/style.css" rel="stylesheet">
+</head>
+<body>
+    <div id="user-crack" class="form">
+        <input v-model="password" placeholder="password"
+               maxlength="5" pattern="[a-zA-Z]{5}" @input="onCheck"
+               autocapitalize="off" autocorrect="off" autofocus="autofocus">
+        <button @click="onSubmit" class="sub-btn">
+            {{btnText}}
+            <div v-if="isLoading" class="loading">
+                <span>.</span>
+                <span>.</span>
+                <span>.</span>
+            </div>
+        </button>
+        <div v-if="md5.length">md5: {{md5}}</div>
+        <div v-if="cracked.length">cracked: {{cracked}}</div>
+    </div>
+    <script>
+        const postPassWord = new Vue({
+            el: '#user-crack',
+            data: {
+                md5:"",
+                password: "",
+                cracked: "",
+                isLoading: false,
+                btnText: "submit"
+            },
+            methods: {
+                onCheck() {
+                    const newStr = this.password.replaceAll(/[^a-zA-Z]/g, '');
+                    this.password = newStr;
+                    this.md5 = "";
+                    this.cracked = "";
+                },
+                onSubmit() {
+                    if (this.password.length < 5) {
+                        alert("invalid input! please enter 5 character!")
+                        return;
+                    }
+                    // clear prev
+                    this.cracked = "";
+                    this.md5 = "";
+                    if (this.isLoading) return;
+
+                    // start
+                    this.isLoading = true;
+                    this.btnText = ""
+                    const passwordMd5 = $.md5(this.password);
+                    this.md5 = passwordMd5;
+                    const timeout = setTimeout(() => {
+                        this.isLoading = false;
+                        this.btnText = "submit"
+                        this.cracked = "timeout!";
+                    }, 5 * 60000);
+
+                    $.ajax({
+                        url: `/user/crack`,
+                        type: 'POST',
+                        data: {
+                            passwordMd5,
+                        },
+                        success: (resp) => {
+                            if (resp.code == 0) {
+                                if (this.isLoading) {
+                                    this.cracked = resp.data;
+                                }
+                            } else {
+                                alert(resp.msg)
+                            }
+                            // clear loading
+                            this.isLoading = false;
+                            this.btnText = "submit"
+                            clearTimeout(timeout)
+                            this.password = "";
+                        }
+                    })
+                }
+            }
+        })
+    </script>
+    <div id="crack-multi" >
+        <div class="form">
+            <input v-model="numbs" placeholder="random numbers"
+                   maxlength="5" pattern="[0-9]{5}"
+                   autocapitalize="off" autocorrect="off" autofocus="autofocus">
+            <button @click="onSubmit" class="sub-btn">
+                {{btnText}}
+                <div v-if="isLoading" class="loading">
+                    <span>.</span>
+                    <span>.</span>
+                    <span>.</span>
+                </div>
+            </button>
+        </div>
+        <div class="random" v-if="cases.length">
+            <div class="rand-item" v-for="c in cases">
+                <p v-if="c.password">password: {{c.password}}</p>
+                <p v-if="c.md5">md5: {{c.md5}}</p>
+                <p v-if="c.cracked">cracked: {{c.cracked}}</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        const postMultiPassWord = new Vue({
+            el: '#crack-multi',
+            data: {
+                numbs: 10,
+                cases: [],
+                isLoading: false,
+                btnText: "submit"
+            },
+            methods: {
+                randomPass() {
+                    let pass = "";
+                    for (let i = 0; i < 5; i++) {
+                        let MIN = 97;
+                        let MAX = 122;
+                        if (Math.random() < 0.5) {
+                            MIN = 97; //a
+                            MAX = 122; //z
+                        } else {
+                            MIN = 65; //A
+                            MAX = 90; //Z
+                        }
+                        min = Math.ceil(MIN);
+                        max = Math.floor(MAX);
+                        const code =  Math.floor(Math.random() * (MAX - MIN + 1)) + MIN; //含最大值，含最小值
+                        const c = String.fromCharCode(code);
+                        pass += c;
+                    }
+                    console.log(pass)
+                    return pass;
+                },
+                submitOne(password, md5) {
+                  return new Promise((resolve, reject) => {
+                      $.ajax({
+                          url: `/user/crack`,
+                          type: 'POST',
+                          data: {
+                              passwordMd5: md5,
+                          },
+                          success: (resp) => {
+                              if (resp.code == 0) {
+                                  const data = {
+                                      password,
+                                      md5,
+                                      cracked: resp.data
+                                  }
+                                  resolve(data)
+                              } else {
+                                  alert( `cracked [${password}] fail:` + resp.msg)
+                                  reject();
+                              }
+                          }
+                      })
+                  });
+                },
+                onSubmit() {
+                    if (this.numbs <= 0 &&  this.numbs > 20) {
+                        alert("invalid integer! please enter number > 0 and <= 20!")
+                        return;
+                    }
+                    // clear prev
+                    this.cases = [];
+                    if (this.isLoading) return;
+
+                    // start
+                    this.isLoading = true;
+                    this.btnText = ""
+
+                    // random numbs times
+                    let passList = [];
+                    for (let i = 0; i < this.numbs; i++) {
+                        const pass = this.randomPass();
+                        passList.push(pass);
+                    }
+
+                    const list = passList.map((pass) => {
+                        return {
+                            password: pass,
+                            md5: $.md5(pass),
+                        }
+                    });
+
+                    this.cases = list;
+
+                    const timeout = setTimeout(() => {
+                        this.isLoading = false;
+                        this.btnText = "submit"
+                        this.cases.forEach((elem) => {
+                            elem.cracked = "timeout!";
+                        })
+                    }, this.cases.length * 5 * 60000);
+
+                    const promiseList = list.map(({password, md5}) => this.submitOne(password, md5))
+                    Promise.all(promiseList).then((results) => {
+                        if (this.isLoading) {
+                            this.cases = results;
+                        }
+                    }).finally(() => {
+                        // clear loading
+                        this.isLoading = false;
+                        this.btnText = "submit"
+                        clearTimeout(timeout)
+                    })
+                }
+            }
+        })
+    </script>
+</body>
+</html>
